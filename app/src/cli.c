@@ -58,6 +58,9 @@ scrcpy_print_usage(const char *arg0) {
         "        Do not display device (only when screen recording is\n"
         "        enabled).\n"
         "\n"
+        "    -d, --display-id\n"
+        "        Use specific display in multi-display configuration.\n"
+        "\n"
         "    -p, --port port\n"
         "        Set the TCP port the client listens on.\n"
         "        Default is %d.\n"
@@ -298,6 +301,18 @@ parse_port(const char *s, uint16_t *port) {
 }
 
 static bool
+parse_display_id(const char *s, uint16_t *display_id) {
+    long value;
+    bool ok = parse_integer_arg(s, &value, false, 0, 0xFFFF, "display-id");
+    if (!ok) {
+        return false;
+    }
+
+    *display_id = (uint16_t) value;
+    return true;
+}
+
+static bool
 parse_record_format(const char *optarg, enum recorder_format *format) {
     if (!strcmp(optarg, "mp4")) {
         *format = RECORDER_FORMAT_MP4;
@@ -353,6 +368,7 @@ scrcpy_parse_args(struct scrcpy_cli_args *args, int argc, char *argv[]) {
         {"max-size",              required_argument, NULL, 'm'},
         {"no-control",            no_argument,       NULL, 'n'},
         {"no-display",            no_argument,       NULL, 'N'},
+        {"display-id",            required_argument, NULL, 'd'},
         {"port",                  required_argument, NULL, 'p'},
         {"push-target",           required_argument, NULL, OPT_PUSH_TARGET},
         {"record",                required_argument, NULL, 'r'},
@@ -379,7 +395,7 @@ scrcpy_parse_args(struct scrcpy_cli_args *args, int argc, char *argv[]) {
     optind = 0; // reset to start from the first argument in tests
 
     int c;
-    while ((c = getopt_long(argc, argv, "b:c:fF:hm:nNp:r:s:StTv", long_options,
+    while ((c = getopt_long(argc, argv, "b:c:fF:hm:nNd:p:r:s:StTv", long_options,
                             NULL)) != -1) {
         switch (c) {
             case 'b':
@@ -422,6 +438,11 @@ scrcpy_parse_args(struct scrcpy_cli_args *args, int argc, char *argv[]) {
                 break;
             case 'N':
                 opts->display = false;
+                break;
+            case 'd':
+                if (!parse_display_id(optarg, &opts->display_id)) {
+                    return false;
+                }
                 break;
             case 'p':
                 if (!parse_port(optarg, &opts->port)) {

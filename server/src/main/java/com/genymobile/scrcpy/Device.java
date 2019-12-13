@@ -24,9 +24,11 @@ public final class Device {
 
     private ScreenInfo screenInfo;
     private RotationListener rotationListener;
+    private int displayId;
 
     public Device(Options options) {
-        screenInfo = computeScreenInfo(options.getCrop(), options.getMaxSize());
+        displayId = options.getDisplayId();
+        screenInfo = computeScreenInfo(options.getCrop(), options.getMaxSize(), displayId);
         registerRotationWatcher(new IRotationWatcher.Stub() {
             @Override
             public void onRotationChanged(int rotation) throws RemoteException {
@@ -46,8 +48,8 @@ public final class Device {
         return screenInfo;
     }
 
-    private ScreenInfo computeScreenInfo(Rect crop, int maxSize) {
-        DisplayInfo displayInfo = serviceManager.getDisplayManager().getDisplayInfo();
+    private ScreenInfo computeScreenInfo(Rect crop, int maxSize, int displayId) {
+        DisplayInfo displayInfo = serviceManager.getDisplayManager().getDisplayInfo(displayId);
         boolean rotated = (displayInfo.getRotation() & 1) != 0;
         Size deviceSize = displayInfo.getSize();
         Rect contentRect = new Rect(0, 0, deviceSize.getWidth(), deviceSize.getHeight());
@@ -162,7 +164,7 @@ public final class Device {
      * @param mode one of the {@code SCREEN_POWER_MODE_*} constants
      */
     public void setScreenPowerMode(int mode) {
-        IBinder d = SurfaceControl.getBuiltInDisplay();
+        IBinder d = SurfaceControl.getBuiltInDisplay(displayId);
         if (d == null) {
             Ln.e("Could not get built-in display");
             return;
@@ -190,6 +192,10 @@ public final class Device {
         if (accelerometerRotation) {
             wm.thawRotation();
         }
+    }
+
+    public int getLayerStack() {
+        return displayId;
     }
 
     static Rect flipRect(Rect crop) {

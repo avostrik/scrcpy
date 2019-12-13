@@ -8,8 +8,84 @@ import android.view.InputEvent;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.MotionEvent.PointerProperties;
+import android.view.MotionEvent.PointerCoords;
+
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
+final class MotionEventWrapper {
+
+    private static final Class<?> CLASS;
+
+    static {
+        try {
+            CLASS = Class.forName("android.view.MotionEvent");
+        } catch (ClassNotFoundException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    private static Method obtainMethod;
+
+    private MotionEventWrapper() {
+        // only static methods
+    }
+
+    private static Method getObtainMethod() throws NoSuchMethodException, ClassNotFoundException {
+        if (obtainMethod == null) {
+            obtainMethod = CLASS.getMethod("obtain",
+                long.class, // downTime
+                long.class, // eventTime
+                int.class, // action
+                int.class, // pointerCount
+                PointerProperties[].class, // properties
+                PointerCoords[].class, // coords
+                int.class, // metaState
+                int.class, // buttonState
+                float.class, // xPrecision
+                float.class, // y precision
+                int.class, // deviceId
+                int.class, // edgeFlags
+                int.class, // source
+                int.class, // displayID
+                int.class); // flags
+        }
+        return obtainMethod;
+    }
+
+    public static MotionEvent obtain(long downTime, long eventTime,
+            int action, int pointerCount, MotionEvent.PointerProperties[] pointerProperties,
+            MotionEvent.PointerCoords[] pointerCoords, int metaState, int buttonState,
+            float xPrecision, float yPrecision, int deviceId,
+            int edgeFlags, int source, int displayId, int flags) {
+
+        try {
+            Method method = getObtainMethod();
+            return (MotionEvent) method.invoke(null,
+                downTime,
+                eventTime,
+                action,
+                pointerCount,
+                pointerProperties,
+                pointerCoords,
+                metaState,
+                buttonState,
+                xPrecision,
+                yPrecision,
+                deviceId,
+                edgeFlags,
+                source,
+                displayId,
+                flags);
+        } catch (InvocationTargetException | IllegalAccessException | NoSuchMethodException | ClassNotFoundException e) {
+            Ln.e("Could not invoke method", e);
+            return null;
+        }
+    }
+}
 
 public class Controller {
 
@@ -26,9 +102,12 @@ public class Controller {
     private final MotionEvent.PointerProperties[] pointerProperties = new MotionEvent.PointerProperties[PointersState.MAX_POINTERS];
     private final MotionEvent.PointerCoords[] pointerCoords = new MotionEvent.PointerCoords[PointersState.MAX_POINTERS];
 
-    public Controller(Device device, DesktopConnection connection) {
+    private int displayId;
+
+    public Controller(Device device, DesktopConnection connection, int displayId) {
         this.device = device;
         this.connection = connection;
+        this.displayId = displayId;
         initPointers();
         sender = new DeviceMessageSender(connection);
     }
@@ -179,9 +258,22 @@ public class Controller {
             }
         }
 
-        MotionEvent event = MotionEvent
-                .obtain(lastTouchDown, now, action, pointerCount, pointerProperties, pointerCoords, 0, buttons, 1f, 1f, DEVICE_ID_VIRTUAL, 0,
-                        InputDevice.SOURCE_TOUCHSCREEN, 0);
+        MotionEvent event = MotionEventWrapper
+                .obtain(lastTouchDown,
+                        now,
+                        action,
+                        pointerCount,
+                        pointerProperties,
+                        pointerCoords,
+                        0,
+                        buttons,
+                        1f,
+                        1f,
+                        DEVICE_ID_VIRTUAL,
+                        0,
+                        InputDevice.SOURCE_TOUCHSCREEN,
+                        displayId,
+                        0);
         return injectEvent(event);
     }
 
@@ -202,9 +294,9 @@ public class Controller {
         coords.setAxisValue(MotionEvent.AXIS_HSCROLL, hScroll);
         coords.setAxisValue(MotionEvent.AXIS_VSCROLL, vScroll);
 
-        MotionEvent event = MotionEvent
+        MotionEvent event = MotionEventWrapper
                 .obtain(lastTouchDown, now, MotionEvent.ACTION_SCROLL, 1, pointerProperties, pointerCoords, 0, 0, 1f, 1f, DEVICE_ID_VIRTUAL, 0,
-                        InputDevice.SOURCE_MOUSE, 0);
+                        InputDevice.SOURCE_MOUSE, displayId, 0);
         return injectEvent(event);
     }
 

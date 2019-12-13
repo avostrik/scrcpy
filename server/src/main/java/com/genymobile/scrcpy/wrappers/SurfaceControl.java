@@ -86,28 +86,16 @@ public final class SurfaceControl {
 
     private static Method getGetBuiltInDisplayMethod() throws NoSuchMethodException {
         if (getBuiltInDisplayMethod == null) {
-            // the method signature has changed in Android Q
-            // <https://github.com/Genymobile/scrcpy/issues/586>
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                getBuiltInDisplayMethod = CLASS.getMethod("getBuiltInDisplay", int.class);
-            } else {
-                getBuiltInDisplayMethod = CLASS.getMethod("getInternalDisplayToken");
-            }
+            getBuiltInDisplayMethod = CLASS.getMethod("getBuiltInDisplay", int.class);
         }
         return getBuiltInDisplayMethod;
     }
 
-    public static IBinder getBuiltInDisplay() {
+    public static IBinder getBuiltInDisplay(int displayId) {
 
         try {
             Method method = getGetBuiltInDisplayMethod();
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                // call getBuiltInDisplay(0)
-                return (IBinder) method.invoke(null, 0);
-            }
-
-            // call getInternalDisplayToken()
-            return (IBinder) method.invoke(null);
+            return (IBinder) method.invoke(null, displayId);
         } catch (InvocationTargetException | IllegalAccessException | NoSuchMethodException e) {
             Ln.e("Could not invoke method", e);
             return null;
